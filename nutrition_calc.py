@@ -1,3 +1,4 @@
+from flask import Flask, render_template, request, jsonify
 from openai import OpenAI
 from dotenv import load_dotenv
 import base64
@@ -6,49 +7,43 @@ import os
 # load api key from .env file
 load_dotenv()
 
+app = Flask(__name__)
 client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
 )
 
-# Conver image to base64
-# Base64 encodes binary data into ASCII text for safe transmission.
-def encode_image(path):
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode("utf-8")
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-# Update image path to your local image file
-image_base64 = encode_image("flamegrapes2.jpg")
+@app.route('/analyze', methods=['POST'])
+def analyze():
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image uploaded'}), 400
+        
+    file = request.files['image']
+    image_base64 = base64.b64encode(file.read()).decode("utf-8")
 
-response = client.responses.create(
+    try:
+        response = client.responses.create(
+            model="gpt-4.1",
+            input=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": "Identify the food and return ONLY valid JSON with keys: name, calories, protein, carbs, fat, and recipes (an array of 3 recipe objects with name and instructions)."
+                    },
+                    {
+                        "type": "input_image",
+                        "image_url": f"data:image/jpeg;base64,{image_base64}"
+                    }
+                ]
+            }]
+        )
+        return jsonify({'result': response.output_text})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
-    model="gpt-4.1",
-
-    input=[{
-
-        "role": "user",
-
-        "content": [
-
-            {
-
-                "type": "input_text",
-
-                "text": "Identify the food and return JSON with calories, protein, carbs, fat, and 3 recipes."
-
-            },
-
-            {
-
-                "type": "input_image",
-
-                "image_url": f"data:image/jpeg;base64,{image_base64}"
-
-            }
-
-        ]
-
-    }]
-
-)
-
-print(response.output_text)
+if __name__ == '__main__':
+    app.run(debug=True)

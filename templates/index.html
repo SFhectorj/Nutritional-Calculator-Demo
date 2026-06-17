@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nutritional Calculator</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif; 
+            font-weight: 300; 
+            color: #1d1d1f; 
+            background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%); 
+            min-height: 100vh; 
+            margin: 0; 
+            padding: 40px 20px; 
+            display: flex; 
+            justify-content: center; 
+            align-items: flex-start;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        h1 { font-weight: 300; letter-spacing: -0.5px; font-size: 2.2em; margin-top: 0; margin-bottom: 10px; }
+        p { font-size: 1.1em; color: #86868b; margin-bottom: 30px; }
+        h2, h3, h4 { font-weight: 400; color: #1d1d1f; }
+        
+        .file-upload-wrapper { position: relative; margin-bottom: 20px; }
+        .file-upload-input { opacity: 0; position: absolute; z-index: -1; }
+        .file-upload-label {
+            display: inline-block;
+            padding: 12px 28px;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+            border-radius: 22px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            border: 1px solid #d2d2d7;
+        }
+        .file-upload-label:hover { background-color: #e8e8ed; }
+
+        #preview { max-width: 100%; max-height: 300px; margin-top: 20px; display: none; margin-left: auto; margin-right: auto; border-radius: 16px; box-shadow: 0 4px 14px rgba(0,0,0,0.08); object-fit: cover; }
+        
+        .result-box { margin-top: 30px; text-align: left; padding: 25px; border: none; display: none; background: #ffffff; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); }
+        
+        .loading { display: none; color: #86868b; margin-top: 20px; font-weight: 400; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+        
+        button { 
+            margin-top: 15px; 
+            padding: 12px 32px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            background: linear-gradient(180deg, #42a1ec, #0070c9); 
+            color: white; 
+            border: 1px solid #076bd2; 
+            border-radius: 22px; 
+            font-weight: 400; 
+            transition: all 0.2s ease; 
+        }
+        button:disabled { background: #e0e0e0; color: #999; border-color: #ccc; cursor: not-allowed; box-shadow: none; }
+        button:hover:not(:disabled) { background: linear-gradient(180deg, #51a9ee, #147bcd); border-color: #1482d0; }
+        
+        .nutrition-list { list-style: none; padding: 0; margin: 20px 0; background: #fbfbfd; border-radius: 12px; border: 1px solid #f0f0f5; padding: 0 15px; }
+        .nutrition-list li { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f5; font-size: 15px; }
+        .nutrition-list li:last-child { border-bottom: none; }
+        .nutrition-list span { color: #86868b; }
+        .nutrition-list strong { font-weight: 500; }
+
+        .recipe { margin-bottom: 15px; padding: 20px; background: #fbfbfd; border: 1px solid #f0f0f5; border-radius: 16px; }
+        .recipe h4 { margin-top: 0; color: #1d1d1f; margin-bottom: 8px; font-weight: 500; }
+        .recipe p { font-size: 0.95em; color: #555; line-height: 1.5; margin: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Nutritional Calculator</h1>
+        <p>Upload an image of food to calculate its nutritional value and get 3 related recipes.</p>
+        
+        <div class="file-upload-wrapper">
+            <input type="file" id="imageInput" class="file-upload-input" accept="image/*">
+            <label for="imageInput" class="file-upload-label">Choose an Image</label>
+        </div>
+        
+        <img id="preview" src="#" alt="Image Preview">
+        <br>
+        <button id="analyzeBtn" style="display:none;">Analyze Food</button>
+        
+        <div id="loading" class="loading">Analyzing image... Please wait.</div>
+        
+        <div id="result" class="result-box"></div>
+    </div>
+
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const preview = document.getElementById('preview');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const resultBox = document.getElementById('result');
+        const loading = document.getElementById('loading');
+        const fileLabel = document.querySelector('.file-upload-label');
+
+        let selectedFile = null;
+
+        imageInput.addEventListener('change', function(e) {
+            if (e.target.files && e.target.files[0]) {
+                selectedFile = e.target.files[0];
+                fileLabel.textContent = selectedFile.name; // Show file name on the label
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    preview.src = event.target.result;
+                    preview.style.display = 'block';
+                    analyzeBtn.style.display = 'inline-block';
+                    resultBox.style.display = 'none';
+                    resultBox.innerHTML = '';
+                }
+                reader.readAsDataURL(selectedFile);
+            }
+        });
+
+        analyzeBtn.addEventListener('click', async function() {
+            if (!selectedFile) return;
+
+            const formData = new FormData();
+            formData.append('image', selectedFile);
+
+            loading.style.display = 'block';
+            resultBox.style.display = 'none';
+            analyzeBtn.disabled = true;
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    resultBox.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+                } else {
+                    let parsedData = null;
+                    try {
+                        let textResult = data.result;
+                        if (textResult.includes('```json')) {
+                            textResult = textResult.split('```json')[1].split('```')[0].trim();
+                        } else if (textResult.includes('```')) {
+                            textResult = textResult.split('```')[1].split('```')[0].trim();
+                        }
+                        parsedData = JSON.parse(textResult);
+                    } catch (e) {
+                        console.error("Failed to parse JSON", e);
+                    }
+
+                    if (parsedData) {
+                        let html = `<h2>${parsedData.name || 'Identified Food'}</h2>`;
+                        html += `<ul class="nutrition-list">
+                                    <li><span>Calories</span> <strong>${parsedData.calories || 'N/A'}</strong></li>
+                                    <li><span>Protein</span> <strong>${parsedData.protein || 'N/A'}</strong></li>
+                                    <li><span>Carbs</span> <strong>${parsedData.carbs || 'N/A'}</strong></li>
+                                    <li><span>Fat</span> <strong>${parsedData.fat || 'N/A'}</strong></li>
+                                 </ul>`;
+                        
+                        if (parsedData.recipes && parsedData.recipes.length > 0) {
+                            html += `<h3>Suggested Recipes</h3>`;
+                            parsedData.recipes.forEach(r => {
+                                html += `<div class="recipe">
+                                            <h4>${r.name || 'Recipe'}</h4>
+                                            <p>${r.instructions || ''}</p>
+                                         </div>`;
+                            });
+                        }
+                        resultBox.innerHTML = html;
+                    } else {
+                        resultBox.innerHTML = `<h3>Raw Result</h3><pre>${data.result}</pre>`;
+                    }
+                }
+            } catch (err) {
+                resultBox.innerHTML = `<p style="color:red;">An error occurred while connecting to the server.</p>`;
+            } finally {
+                loading.style.display = 'none';
+                analyzeBtn.disabled = false;
+                resultBox.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
